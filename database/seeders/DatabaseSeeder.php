@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
     $this->call([
         StateSeeder::class,
         RolesAndPermissionsSeeder::class,
+        ProductSeeder::class,
+        TankSeeder::class,
         // Aquí puedes añadir otros seeders en el futuro
     ]);
 
@@ -24,6 +26,7 @@ class DatabaseSeeder extends Seeder
     \App\Models\User::factory()->create([
         'name' => 'Admin User',
         'email' => 'admin@gascomunal.com.ve',
+        'state_id' => null,
     ])->assignRole('Admin');
     
     }

@@ -4,10 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class State extends Model
+class product extends Model
 {
     /**
-     * Un Estado puede tener muchos movimientos de inventario.
+     * Un producto puede tener muchos movimientos de inventario.
      */
     public function inventoryMovements()
     {

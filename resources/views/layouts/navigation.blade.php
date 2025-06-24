@@ -19,7 +19,13 @@
                         Dashboard
                     </a>
                 </li>
-                
+                @can('create movements')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('movements.*') ? 'active' : '' }}" href="{{ route('movements.index') }}">
+                            Movimientos
+                        </a>
+                    </li>
+                @endcan 
                 <!-- Enlace a Gestión de Usuarios (SOLO para Admins) -->
                 @can('manage users')
                     <li class="nav-item">

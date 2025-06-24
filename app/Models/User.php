@@ -14,6 +14,16 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+
+    /**
+     * Un usuario puede tener muchos movimientos de inventario.
+     */
+    public function inventoryMovements()
+    {
+        return $this->hasMany(InventoryMovement::class);
+    }
+
+
     /**
      * Define la relación de que un Usuario pertenece a un Estado.
      */
