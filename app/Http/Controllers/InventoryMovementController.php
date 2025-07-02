@@ -49,29 +49,62 @@ class InventoryMovementController extends Controller
      */
     public function store(StoreMovementRequest $request, ControlNumberService $controlNumberService)
     {
-        // 1. La validación ya se ejecutó gracias al Form Request.
-    
-        // 2. Generamos el número de control.
-        $controlNumber = $controlNumberService->generateForState(Auth::user()->state_id);
+        
+        // --- 1. VALIDACIÓN ---    
+        // La validación ya se ejecutó automáticamente gracias a StoreMovementRequest.
+        // Solo los datos que pasaron la validación están disponibles aquí.
 
-        // 3. Creamos el movimiento en la base de datos.
+        // 1. Generamos el número de control para el estado del usuario logueado.
+        $controlNumber = $controlNumberService->generateForState(Auth::user()->state_id);
+        
+        // 2. Usamos el método `create` con todos los campos del formulario y los generados por el sistema.
+        // Nos aseguramos de que todos estos campos estén en el array `$fillable` del modelo InventoryMovement.
         InventoryMovement::create([
+        // --- Datos del Sistema ---
         'user_id' => Auth::id(),
         'state_id' => Auth::user()->state_id,
         'control_number' => $controlNumber,
         'status' => 'ingresado', // Estado inicial del workflow
-        // El resto de los datos vienen del request validado:
-        'type' => $request->type,
-        'movement_date' => $request->movement_date,
-        'volume_liters' => $request->volume_liters,
-        'tank_id' => $request->tank_id,
-        'product_id' => $request->product_id,
-        'client_id' => $request->client_id,
-        'notes' => $request->notes,
-    ]);
+        'type' => 'entrada', // Lo definimos explícitamente para este formulario
 
-    // 4. Redirigimos con un mensaje de éxito.
-    return redirect()->route('movements.index')
+        'movement_date' => $request->movement_date,
+
+        // --- Datos del Formulario (validados) ---
+        'supply_source' => $request->supply_source,
+        'pdvsa_sale_number' => $request->pdvsa_sale_number,
+        
+        'chuto_code' => $request->chuto_code,
+        'chuto_plate' => $request->chuto_plate,
+        
+        'cisterna_code' => $request->cisterna_code,
+        'cisterna_capacity_gallons' => $request->cisterna_capacity_gallons,
+        'cisterna_plate' => $request->cisterna_plate,
+        'cisterna_serial' => $request->cisterna_serial,
+
+        'driver_name' => $request->driver_name,
+        'driver_ci' => $request->driver_ci,
+        'driver_code' => $request->driver_code,
+
+        'tank_id' => $request->tank_id, // Tanque de destino
+
+        'arrival_volume_percentage' => $request->arrival_volume_percentage,
+        'arrival_temperature' => $request->arrival_temperature,
+        'arrival_pressure' => $request->arrival_pressure,
+        'arrival_specific_gravity' => $request->arrival_specific_gravity,
+
+        'departure_volume_percentage' => $request->departure_volume_percentage,
+        'departure_temperature' => $request->departure_temperature,
+        'departure_pressure' => $request->departure_pressure,
+        'departure_specific_gravity' => $request->departure_specific_gravity,
+
+        'volume_liters' => $request->volume_liters, // Litros Netos Despachados
+        
+        // El campo 'notes' no lo definimos en el formulario, pero lo dejamos por si se añade en el futuro
+        'notes' => $request->notes,
+        ]);
+
+        // 4. Redirigimos con un mensaje de éxito.
+        return redirect()->route('movements.index')
         ->with('success', "Movimiento registrado con el N° de Control: $controlNumber");
     }
 

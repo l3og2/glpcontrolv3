@@ -22,13 +22,28 @@ class StoreMovementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => 'required|in:entrada,salida',
-            'movement_date' => 'required|date',
-            'volume_liters' => 'required|numeric|min:0',
-            'tank_id' => 'required_if:type,entrada|exists:tanks,id', // El tanque es requerido si es una entrada
-            'product_id' => 'required_if:type,salida|exists:products,id', // El producto es requerido si es una salida
-            'client_id' => 'nullable|exists:clients,id',
-            'notes' => 'nullable|string',
+            'movement_date'                 => 'required|date',
+            'supply_source'                 => 'required|string|max:255',
+            'pdvsa_sale_number'             => 'required|string|max:255',
+            'chuto_code'                    => 'nullable|string|max:50',
+            'chuto_plate'                   => 'required|string|max:20',
+            'cisterna_code'                 => 'nullable|string|max:50',
+            'cisterna_capacity_gallons'     => 'required|numeric|min:0',
+            'cisterna_plate'                => 'required|string|max:20',
+            'cisterna_serial'               => 'nullable|string|max:100',
+            'driver_name'                   => 'required|string|max:255',
+            'driver_ci'                     => 'required|string|max:20',
+            'driver_code'                   => 'nullable|string|max:50',
+            'tank_id'                       => 'required|integer|exists:tanks,id',
+            'arrival_volume_percentage'     => 'required|numeric|between:0,100',
+            'arrival_temperature'           => 'required|numeric',
+            'arrival_pressure'              => 'required|numeric',
+            'arrival_specific_gravity'      => 'required|numeric|min:0',
+            'departure_volume_percentage'   => 'required|numeric|between:0,100',
+            'departure_temperature'         => 'required|numeric',
+            'departure_pressure'            => 'required|numeric',
+            'departure_specific_gravity'    => 'required|numeric|min:0',
+            'volume_liters'                 => 'required|numeric|min:0',
         ];
     }
 }
