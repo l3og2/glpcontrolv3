@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\{State, Product, Client, Tank, InventoryMovement};
+use App\Models\Price;
 use App\Services\ControlNumberService;
 use App\Http\Requests\StoreMovementRequest;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,20 @@ class InventoryMovementController extends Controller
         $products = Product::all(); // Los productos pueden ser para cualquier estado
 
         return view('movements.create', compact('tanks', 'clients', 'products'));
+    }
+
+    public function createBatchSalida()
+    {
+    // Obtenemos todos los productos.
+    $products = Product::all();
+
+    // Obtenemos los precios solo para el estado del usuario actual para optimizar.
+    // Usamos pluck() para crear un array asociativo [product_id => price], muy eficiente.
+    $prices = Price::where('state_id', Auth::user()->state_id)
+                   ->pluck('price', 'product_id');
+
+    // Devolvemos la nueva vista y le pasamos los productos y el array de precios.
+    return view('movements.create_batch_salida', compact('products', 'prices'));
     }
 
     /**

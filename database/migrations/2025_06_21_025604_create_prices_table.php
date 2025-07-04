@@ -15,7 +15,6 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->foreignId('state_id')->constrained()->onDelete('cascade');
             $table->decimal('price', 10, 2);
-            // Clave primaria compuesta para asegurar un único precio por producto en cada estado
             $table->primary(['product_id', 'state_id']);
             $table->timestamps();
         });

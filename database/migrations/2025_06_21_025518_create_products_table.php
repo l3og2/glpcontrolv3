@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('name');
             $table->enum('type', ['cilindro', 'granel', 'carburacion']);
             $table->enum('unit_of_measure', ['kg', 'litro']);
+            $table->decimal('weight_kg', 8, 2)->nullable();
+            $table->decimal('volume_liters', 8, 2)->nullable();
             $table->timestamps();
         });
     }
