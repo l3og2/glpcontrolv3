@@ -2,7 +2,7 @@
 @section('title', 'Registro de Salidas por Lote')
 
 @section('content')
-<form action="{{-- route('movements.store_batch') --}}" method="POST">
+<form action="{{ route('movements.store_batch') }}" method="POST">
     @csrf
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -90,56 +90,72 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const form = document.querySelector('form');
+    // Seleccionamos TODOS los campos de entrada de cantidad
+    const quantityInputs = document.querySelectorAll('.quantity-input');
 
-    function calculateRow(row) {
-        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
-        const volumePerUnit = parseFloat(row.querySelector('.volume-per-unit').textContent) || 0;
-        const pricePerUnit = parseFloat(row.querySelector('.price-per-unit').textContent.replace(',', '')) || 0;
+    // Función para formatear números a formato de moneda local (ej: 1.234,56)
+    function formatCurrency(number) {
+        return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES' }).format(number).replace('VES', 'Bs.');
+    }
+
+    function formatNumber(number) {
+        return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number);
+    }
+
+    // Función para calcular los totales de una sola fila
+    function calculateRow(inputElement) {
+        const row = inputElement.closest('.product-row');
+        if (!row) return;
+
+        const quantity = parseFloat(inputElement.value) || 0;
+        const volumePerUnit = parseFloat(row.querySelector('.volume-per-unit').textContent.replace(',', '.')) || 0;
+        const pricePerUnit = parseFloat(row.querySelector('.price-per-unit').textContent.replace(',', '.')) || 0;
 
         const totalVolume = quantity * volumePerUnit;
         const totalSales = quantity * pricePerUnit;
 
-        row.querySelector('.total-volume').textContent = totalVolume.toFixed(2);
-        row.querySelector('.total-sales').textContent = totalSales.toFixed(2);
+        row.querySelector('.total-volume').textContent = formatNumber(totalVolume);
+        row.querySelector('.total-sales').textContent = formatNumber(totalSales);
     }
 
-    function calculateTotals() {
+    // Función para calcular TODOS los subtotales y grandes totales
+    function calculateAllTotals() {
         let grandTotalVolume = 0;
         let grandTotalSales = 0;
-        
+
         document.querySelectorAll('.calculation-group').forEach(group => {
             let subtotalVolume = 0;
             let subtotalSales = 0;
             const groupName = group.dataset.groupName;
 
             group.querySelectorAll('.product-row').forEach(row => {
-                subtotalVolume += parseFloat(row.querySelector('.total-volume').textContent) || 0;
-                subtotalSales += parseFloat(row.querySelector('.total-sales').textContent) || 0;
+                subtotalVolume += parseFloat(row.querySelector('.total-volume').textContent.replace('.', '').replace(',', '.')) || 0;
+                subtotalSales += parseFloat(row.querySelector('.total-sales').textContent.replace('.', '').replace(',', '.')) || 0;
             });
             
-            document.getElementById(`subtotal-volume-${groupName}`).textContent = subtotalVolume.toFixed(2);
-            document.getElementById(`subtotal-sales-${groupName}`).textContent = subtotalSales.toFixed(2);
+            document.getElementById(`subtotal-volume-${groupName}`).textContent = formatNumber(subtotalVolume);
+            document.getElementById(`subtotal-sales-${groupName}`).textContent = formatCurrency(subtotalSales);
 
             grandTotalVolume += subtotalVolume;
             grandTotalSales += subtotalSales;
         });
 
-        document.getElementById('grand-total-volume').textContent = grandTotalVolume.toFixed(2);
-        document.getElementById('grand-total-sales').textContent = grandTotalSales.toFixed(2);
+        document.getElementById('grand-total-volume').textContent = formatNumber(grandTotalVolume);
+        document.getElementById('grand-total-sales').textContent = formatCurrency(grandTotalSales);
     }
 
-    form.addEventListener('input', function(event) {
-        if (event.target.classList.contains('quantity-input')) {
-            const row = event.target.closest('.product-row');
-            calculateRow(row);
-            calculateTotals();
-        }
+    // --- El Corazón de la Solución ---
+    // Añadimos un "escuchador" de eventos a CADA campo de cantidad
+    quantityInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            calculateRow(this);      // Calcula solo la fila que cambió
+            calculateAllTotals();  // Recalcula todos los totales
+        });
     });
-
-    // Initial calculation in case of old values
-    document.querySelectorAll('.product-row').forEach(calculateRow);
-    calculateTotals();
+    
+    // Opcional: Ejecutar un cálculo inicial por si la página se recarga con datos viejos
+    quantityInputs.forEach(calculateRow);
+    calculateAllTotals();
 });
 </script>
 @endpush

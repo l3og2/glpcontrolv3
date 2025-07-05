@@ -123,6 +123,68 @@ class InventoryMovementController extends Controller
         ->with('success', "Movimiento registrado con el N° de Control: $controlNumber");
     }
 
+    public function storeBatchSalida(Request $request, ControlNumberService $controlNumberService)
+    {
+    // 1. Validación básica de los datos generales
+    $request->validate([
+        'movement_date' => 'required|date',
+        'quantities' => 'required|array', // Nos aseguramos de que 'quantities' sea un array
+    ]);
+
+    $user = Auth::user();
+    $totalVolume = 0;
+    $totalSales = 0;
+
+    // 2. Recorremos el array de cantidades que nos llega del formulario
+    foreach ($request->quantities as $productId => $quantity) {
+        // Solo procesamos las filas donde el analista introdujo una cantidad
+        if ($quantity > 0) {
+            
+            // 3. Obtenemos los datos del producto y su precio
+            $product = Product::find($productId);
+            if (!$product) continue; // Si el producto no existe, saltamos a la siguiente iteración
+
+            $price = Price::where('product_id', $productId)
+                          ->where('state_id', $user->state_id)
+                          ->first();
+            
+            $unitPrice = $price ? $price->price : 0;
+            
+            // Si la unidad de medida es por 'kg', usamos el volumen en litros pre-calculado. Si no, usamos la cantidad.
+            $volumeInLiters = ($product->unit_of_measure === 'kg') ? $quantity * $product->volume_liters : $quantity;
+            $totalAmount = $quantity * $unitPrice;
+            
+            // Acumulamos los totales
+            $totalVolume += $volumeInLiters;
+            $totalSales += $totalAmount;
+
+            // 4. Creamos un registro de movimiento individual para cada producto vendido
+            InventoryMovement::create([
+                'user_id' => $user->id,
+                'state_id' => $user->state_id,
+                'control_number' => $controlNumberService->generateForState($user->state_id),
+                'status' => 'ingresado',
+                'type' => 'salida',
+                'movement_date' => $request->movement_date,
+                'product_id' => $productId,
+                'volume_liters' => $volumeInLiters, // Guardamos el volumen total en litros
+                'quantity' => $quantity, // Podríamos añadir una columna 'quantity' para guardar las unidades
+                'unit_price' => $unitPrice,
+                'total_amount' => $totalAmount,
+            ]);
+        }
+    }
+
+    // 5. Si no se vendió nada, volvemos con un aviso.
+    if ($totalVolume == 0) {
+        return redirect()->back()->with('warning', 'No se ingresaron cantidades. No se ha registrado ninguna venta.');
+    }
+
+    // 6. Redirigimos con un mensaje de éxito que resume la operación
+    return redirect()->route('movements.index')
+        ->with('success', "Reporte de ventas guardado con éxito. Total Volumen: " . number_format($totalVolume, 2) . " Lts. Total Ventas: Bs. " . number_format($totalSales, 2));
+    }    
+
     /**
      * Display the specified resource.
      */

@@ -16,9 +16,10 @@ class DatabaseSeeder extends Seeder
         // Llama a nuestro nuevo seeder
     $this->call([
         StateSeeder::class,
-        RolesAndPermissionsSeeder::class,
         ProductSeeder::class,
         TankSeeder::class,
+        RolesAndPermissionsSeeder::class,
+        PriceSeeder::class,
         // Aquí puedes añadir otros seeders en el futuro
     ]);
 
