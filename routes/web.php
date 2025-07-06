@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -18,8 +19,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('movements', InventoryMovementController::class)->middleware('can:create movements');
     Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware(['auth', 'verified', 'role:Admin|Gerente Regional']) // Solo estos roles pueden ver el dashboard
+        ->middleware(['auth', 'verified', 'role:Admin|Gerente Regional|Supervisor|Analista']) // Solo estos roles pueden ver el dashboard
         ->name('dashboard');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
 });
 
 Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {

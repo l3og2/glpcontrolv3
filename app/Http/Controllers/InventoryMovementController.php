@@ -158,6 +158,9 @@ class InventoryMovementController extends Controller
             $totalVolume += $volumeInLiters;
             $totalSales += $totalAmount;
 
+            // 2. Generamos un nuevo número de control DENTRO de cada iteración del bucle
+            $controlNumber = $controlNumberService->generateForState($user->state_id, new \Carbon\Carbon($request->movement_date));
+
             // 4. Creamos un registro de movimiento individual para cada producto vendido
             InventoryMovement::create([
                 'user_id' => $user->id,
