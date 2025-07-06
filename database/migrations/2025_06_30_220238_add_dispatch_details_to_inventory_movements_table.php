@@ -12,6 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('inventory_movements', function (Blueprint $table) {
+            
+            $table->decimal('unit_price', 10, 2)->nullable()->after('volume_liters');
+            $table->decimal('total_amount', 12, 2)->nullable()->after('unit_price');
+                        
             //Datos del Proveedor y Venta
             $table->string('supply_source')->nullable()->after('notes');
             $table->string('pdvsa_sale_number')->nullable()->after('supply_source');

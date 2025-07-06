@@ -2,33 +2,30 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
+     * Este seeder carga TODOS los datos esenciales para que la app funcione.
      */
     public function run(): void
     {
-        // Llama a nuestro nuevo seeder
-    $this->call([
-        StateSeeder::class,
-        ProductSeeder::class,
-        TankSeeder::class,
-        RolesAndPermissionsSeeder::class,
-        PriceSeeder::class,
-        // Aquí puedes añadir otros seeders en el futuro
-    ]);
+        $this->command->info('Ejecutando seeders de datos maestros...');
+        
+        // El orden es importante para las relaciones de la base de datos
+        $this->call([
+            StateSeeder::class,               // 1. Estados
+            ProductSeeder::class,             // 2. Productos
+            TankSeeder::class,                // 3. Tanques (depende de estados)
+            RolesAndPermissionsSeeder::class, // 4. Roles y Permisos
+            PriceSeeder::class,               // 5. Precios (depende de productos y estados)
+            AdminUserSeeder::class,           // 6. Usuario Administrador (depende de roles)
+        ]);
 
-    // Opcional: Crear un usuario Admin por defecto
-    \App\Models\User::factory()->create([
-        'name' => 'Admin User',
-        'email' => 'admin@gascomunal.com.ve',
-        'state_id' => null,
-    ])->assignRole('Admin');
-    
+        $this->command->info('¡Seeders de datos maestros completados!');
+
+        // NOTA: Hemos eliminado la llamada a FakeDataSeeder de aquí.
     }
 }
