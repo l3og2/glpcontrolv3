@@ -1,41 +1,38 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'GLPControlv3') }}</title>
+    <title>{{ config('app.name', 'GLPControlv3') }}</title>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    <!-- Bootstrap 5 (desde Vite) -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- Logo opcional -->
+    @csrf
+</head>
+<body>
+    <div class="bg-light min-vh-100 d-flex flex-column">
+        @include('layouts.navigation')
 
-        <!-- logo -->
-        @csrf
-        <img class="mb-4" src="{{ Vite::asset('resources/images/logo_gas_comunal_transp.png') }}" alt="Logo Gas Comunal" width="250">
-    </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
-            @include('layouts.navigation')
+        <!-- Page Heading -->
+        @isset($header)
+            <header class="bg-white shadow-sm py-3 mb-4">
+                <div class="container">
+                    {{ $header }}
+                </div>
+            </header>
+        @endisset
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endisset
+        <!-- Page Content -->
+        <main class="flex-grow-1">
+            @yield('content')
+        </main>
+    </div>
 
-            <!-- Page Content -->
-            <main>
-                @yield('content')
-            </main>
-        </div>
-        @stack('scripts')
-    </body>
+    @stack('scripts')
+</body>
 </html>
+

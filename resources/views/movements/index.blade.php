@@ -28,40 +28,48 @@
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
                     <tr>
-                        <th>N° Controlt</th>
+                        <th>N° Control</th>
                         <th>Fecha</th>
                         <th>Tipo</th>
                         <th>Producto/Tanque</th>
                         <th>Volumen (Lts)</th>
+                        <th>Total Ventas</th>
                         <th>Registrado Por</th>
                         <th>Estado</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse ($movements as $movement)
-                    <tr>
-                        <td><strong>{{ $movement->control_number }}</strong></td>
-                        <td>{{ $movement->movement_date->format('d/m/Y H:i') }}</td>
-                        <td>
-                            @if($movement->type == 'entrada')
-                                <span class="badge bg-success">Entrada</span>
-                            @else
-                                <span class="badge bg-danger">Salida</span>
-                            @endif
-                        </td>
-                        <td>{{ $movement->product->name ?? $movement->tank->name_location ?? 'N/A' }}</td>
-                        <td>{{ number_format($movement->volume_liters, 2, ',', '.') }}</td>
-                        <td>{{ $movement->user->name }}</td>
-                        <td>
-                            <span class="badge bg-warning text-dark">{{ ucfirst($movement->status) }}</span>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" class="text-center">No se han registrado movimientos todavía.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
+               <tbody>
+    @forelse ($movements as $movement)
+        <tr>
+            <td><strong>{{ $movement->first_control_number }}</strong><br>
+                <small class="text-muted">Lote: {{ substr($movement->batch_id, 0, 8) }}</small>
+            </td>
+            <td>{{ \Carbon\Carbon::parse($movement->movement_date)->format('d/m/Y') }}</td>
+            <td>
+                @if($movement->type == 'entrada')
+                    <span class="badge bg-success">Entrada</span>
+                @else
+                    <span class="badge bg-danger">Salida (Lote)</span>
+                @endif
+            </td>
+            <td>
+                @if($movement->type == 'entrada')
+                    {{ $movement->tank->name_location ?? 'Entrada General' }}
+                @else
+                    Reporte de Ventas ({{ $movement->item_count }} productos)
+                @endif
+            </td>
+            <td class="text-end">{{ number_format($movement->total_volume, 2, ',', '.') }}</td>
+            <td class="text-end">{{ $movement->type == 'salida' ? 'Bs. ' . number_format($movement->total_sales, 2, ',', '.') : '-' }}</td>
+            <td>{{ $movement->user->name }}</td>
+            <td>
+                <span class="badge bg-warning text-dark">{{ ucfirst($movement->status) }}</span>
+            </td>
+        </tr>
+    @empty
+        <tr><td colspan="8" class="text-center">No se han registrado movimientos.</td></tr>
+    @endforelse
+</tbody>
             </table>
         </div>
         
