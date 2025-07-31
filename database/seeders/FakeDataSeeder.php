@@ -5,13 +5,14 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\State;
-use App\Models\Role;
 use App\Models\Product;
 use App\Models\Tank;
 use App\Models\Client;
+use App\Models\Price;
 use App\Models\InventoryMovement;
 use App\Services\ControlNumberService;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class FakeDataSeeder extends Seeder
 {
@@ -29,36 +30,29 @@ class FakeDataSeeder extends Seeder
         $states = State::all();
         
         foreach ($states as $state) {
-            // Crear un Gerente por estado
             User::factory()->create([
                 'name' => 'Gerente ' . $state->name,
                 'email' => 'gerente.' . strtolower($state->code) . '@gascomunal.com.ve',
                 'state_id' => $state->id,
             ])->assignRole('Gerente Regional');
 
-            // Crear dos Supervisores por estado
             User::factory()->count(2)->create([
                 'name' => fn () => 'Supervisor ' . $state->name . ' ' . fake()->lastName(),
                 'email' => fn () => fake()->unique()->safeEmail(),
                 'state_id' => $state->id,
-            ])->each(function ($user) {
-                $user->assignRole('Supervisor');
-            });
+            ])->each(fn ($user) => $user->assignRole('Supervisor'));
             
-            // Crear cinco Analistas por estado
             User::factory()->count(5)->create([
                 'name' => fn () => 'Analista ' . $state->name . ' ' . fake()->lastName(),
                 'email' => fn () => fake()->unique()->safeEmail(),
                 'state_id' => $state->id,
-            ])->each(function ($user) {
-                $user->assignRole('Analista');
-            });
+            ])->each(fn ($user) => $user->assignRole('Analista'));
         }
         $this->command->info('Usuarios de prueba creados.');
 
         // --- 2. GENERAR CLIENTES DE PRUEBA ---
         $this->command->info('Creando clientes de prueba...');
-        Client::factory()->count(50)->create();
+        Client::factory()->count(150)->create();
         $this->command->info('Clientes de prueba creados.');
 
         // --- 3. GENERAR MOVIMIENTOS DE INVENTARIO ---
@@ -69,56 +63,60 @@ class FakeDataSeeder extends Seeder
         $tanks = Tank::all();
         $clients = Client::all();
         $controlNumberService = new ControlNumberService();
+        $allPrices = Price::all()->groupBy('state_id');
 
-        // Usamos una barra de progreso para una mejor experiencia en la consola
         $progressBar = $this->command->getOutput()->createProgressBar(1000);
 
         for ($i = 0; $i < 1000; $i++) {
             $analyst = $analysts->random();
-            $product = $products->random();
+            $stateId = $analyst->state_id;
             
-            // Aseguramos que el tanque y el cliente pertenezcan al mismo estado que el analista
-            $stateTanks = $tanks->where('state_id', $analyst->state_id);
-            $stateClients = $clients->where('state_id', $analyst->state_id);
-            
-            // Si no hay tanques o clientes para ese estado, saltamos la iteración
-            if ($stateTanks->isEmpty()) continue;
-
-            $tank = $stateTanks->random();
-            $client = $stateClients->isNotEmpty() ? $stateClients->random() : null;
-
-            // Fecha aleatoria en los últimos 6 meses
             $date = Carbon::instance(fake()->dateTimeBetween('-6 months', 'now'));
-
-            // Decidimos aleatoriamente si es entrada o salida
             $type = fake()->randomElement(['entrada', 'salida']);
 
-            InventoryMovement::create([
-                // Datos del Sistema
+            $data = [
                 'user_id' => $analyst->id,
-                'state_id' => $analyst->state_id,
-                'control_number' => $controlNumberService->generateForState($analyst->state_id, $date),
-                'status' => fake()->randomElement(['aprobado', 'revisado', 'ingresado']), // Estados variados
+                'state_id' => $stateId,
+                'status' => fake()->randomElement(['aprobado', 'revisado', 'ingresado']),
                 'type' => $type,
                 'movement_date' => $date,
+                'volume_liters' => fake()->randomFloat(2, 50, 38000),
+                'batch_id' => Str::uuid(), // Asignamos un ID de lote único a cada movimiento
+                'control_number' => $controlNumberService->generateForState($stateId, $date),
+            ];
 
-                // Datos de la Transacción
-                'volume_liters' => fake()->randomFloat(2, 50, 38000), // Volumen entre 50 y 38,000 litros
-                'product_id' => ($type === 'salida') ? $product->id : null,
-                'tank_id' => ($type === 'entrada') ? $tank->id : null,
-                'client_id' => ($type === 'salida' && $client) ? $client->id : null,
+            if ($type === 'entrada') {
+                $stateTanks = $tanks->where('state_id', $stateId);
+                if ($stateTanks->isEmpty()) continue;
 
-                // Detalles de la Orden de Llenado (solo para entradas)
-                'supply_source' => ($type === 'entrada') ? fake()->randomElement(['Criogénico de Jose', 'Refinería El Palito', 'Refinería Amuay']) : null,
-                'pdvsa_sale_number' => ($type === 'entrada') ? fake()->numerify('ORD-######') : null,
-                'chuto_plate' => ($type === 'entrada') ? fake()->bothify('A##??##') : null,
-                'cisterna_plate' => ($type === 'entrada') ? fake()->bothify('R##??##') : null,
-                'cisterna_capacity_gallons' => ($type === 'entrada') ? 10200 : null,
-                'driver_name' => ($type === 'entrada') ? fake()->name() : null,
-                'driver_ci' => ($type === 'entrada') ? fake()->numerify('V-########') : null,
-                // ... puedes añadir más campos falsos aquí si lo deseas
-            ]);
-            
+                $data = array_merge($data, [
+                    'tank_id' => $stateTanks->random()->id,
+                    'supply_source' => fake()->randomElement(['Criogénico de Jose', 'Refinería El Palito', 'Refinería Amuay']),
+                    'pdvsa_sale_number' => fake()->numerify('ORD-######'),
+                    'driver_name' => fake()->name(),
+                    'driver_ci' => fake()->numerify('V-########'),
+                    'chuto_plate' => fake()->bothify('A##??##'),
+                    'cisterna_plate' => fake()->bothify('R##??##'),
+                    'cisterna_capacity_gallons' => 10200,
+                ]);
+            } else { // type === 'salida'
+                $product = $products->random();
+                $stateClients = $clients->where('state_id', $stateId);
+                $statePrices = $allPrices->get($stateId);
+                $price = $statePrices ? $statePrices->firstWhere('product_id', $product->id) : null;
+                
+                $unitPrice = $price ? $price->price : 0;
+                $totalAmount = $data['volume_liters'] * $unitPrice;
+
+                $data = array_merge($data, [
+                    'product_id' => $product->id,
+                    'client_id' => $stateClients->isNotEmpty() ? $stateClients->random()->id : null,
+                    'unit_price' => $unitPrice,
+                    'total_amount' => $totalAmount,
+                ]);
+            }
+
+            InventoryMovement::create($data);
             $progressBar->advance();
         }
         

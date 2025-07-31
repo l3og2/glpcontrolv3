@@ -27,9 +27,33 @@
         @endisset
 
         <!-- Page Content -->
-        <main class="flex-grow-1">
+              
+    <main class="py-4">
+        <div class="container">
+        
+        <!-- Sección para el Título de la Página y Acciones -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h3 mb-0 text-gray-800">@yield('title')</h2>
+                <div>
+                    {{-- ESTA LÍNEA ES LA MÁS IMPORTANTE --}}
+                    @yield('header-actions') 
+                </div>
+            </div>
+
+        <!-- Alertas de Sesión -->
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+        <!-- Contenido Principal -->
             @yield('content')
-        </main>
+
+            </div>
+    </main>
+     
     </div>
 
     @stack('scripts')

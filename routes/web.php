@@ -14,6 +14,7 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::get('movements/batch-salida/create', [InventoryMovementController::class, 'createBatchSalida'])->name('movements.create_batch_salida');
+    Route::get('movements/batch/{batch_id}', [InventoryMovementController::class, 'showBatch'])->name('movements.show_batch');
     Route::post('movements/batch-salida', [InventoryMovementController::class, 'storeBatchSalida'])->name('movements.store_batch');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

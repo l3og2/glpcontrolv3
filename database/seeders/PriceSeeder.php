@@ -9,55 +9,63 @@ use App\Models\State;
 
 class PriceSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
+        // Limpiamos la tabla para empezar de cero
         Price::truncate();
 
-        // Vamos a crear precios para el estado Miranda como ejemplo
-        $miranda = State::where('code', 'MIR')->first();
-        if (!$miranda) {
-            $this->command->info('Estado Miranda no encontrado, saltando PriceSeeder.');
-            return;
-        }
+        $this->command->info('Iniciando el seeder de precios para todos los estados...');
+        
+        // Obtenemos todos los estados y productos una sola vez para eficiencia
+        $states = State::all();
+        $products = Product::all();
 
-        // Definimos las tarifas de la hoja de cálculo
-        $tariffs = [
-            // Residencial
-            'Cilindros 10KG-Res' => 5.00,
-            'Cilindros 18KG-Res' => 9.00,
-            'Cilindros 27KG-Res' => 13.50,
-            'Cilindros 43KG-Res' => 21.50,
-            'Granel Litro-Res' => 0.40,
-            'Carburación Litro-Res' => 0.45,
-            // Comercial
-            'Cilindros 10KG-Com' => 6.50,
-            'Cilindros 18KG-Com' => 11.70,
-            'Cilindros 27KG-Com' => 17.55,
-            'Cilindros 43KG-Com' => 27.95,
-            'Granel Litro-Com' => 0.52,
-            'Carburación Litro-Com' => 0.59,
-            // Convenios
-            'Cilindros 10KG-Conv' => 3.85,
-            'Cilindros 18KG-Conv' => 6.92,
-            'Cilindros 27KG-Conv' => 10.38,
-            'Cilindros 43KG-Conv' => 16.54,
-            'Granel Litro-Conv' => 0.31,
-            'Carburación Litro-Conv' => 0.35,
+        // Tarifas base (usando las de Miranda como referencia)
+        $baseTariffs = [
+            'Cilindros 10KG' => 5.00,
+            'Cilindros 18KG' => 9.00,
+            'Cilindros 27KG' => 13.50,
+            'Cilindros 43KG' => 21.50,
+            'Granel Litro' => 0.40,
+            'Carburación Litro' => 0.45,
         ];
+        
+        // Creamos una barra de progreso para una mejor experiencia visual
+        $progressBar = $this->command->getOutput()->createProgressBar($states->count() * $products->count());
 
-        foreach ($tariffs as $productName => $price) {
-            // Buscamos el producto por su nombre completo
-            $product = Product::where('name', $productName)->first();
+        // Recorremos cada estado
+        foreach ($states as $state) {
+            // Recorremos cada producto
+            foreach ($products as $product) {
+                // Limpiamos el nombre del producto para encontrar su tarifa base
+                $baseProductName = trim(str_replace(['-Res', '-Com', '-Conv'], '', $product->name));
+                $basePrice = $baseTariffs[$baseProductName] ?? 0; // Usamos 0 si no se encuentra
+                
+                // Aplicamos un modificador de precio según la categoría (Residencial, Comercial, Convenios)
+                $priceModifier = 1.0;
+                if (str_contains($product->name, '-Com')) $priceModifier = 1.30; // Comercial es 30% más caro
+                if (str_contains($product->name, '-Conv')) $priceModifier = 0.77; // Convenios es 23% más barato
+                
+                // Añadimos una pequeña variación aleatoria (+/- 5%) para simular diferencias entre estados
+                $randomVariation = 1 + (rand(-5, 5) / 100);
+                
+                // Calculamos el precio final
+                $finalPrice = ($basePrice * $priceModifier) * $randomVariation;
 
-            if ($product) {
                 Price::create([
                     'product_id' => $product->id,
-                    'state_id' => $miranda->id,
-                    'price' => $price,
+                    'state_id' => $state->id,
+                    'price' => $finalPrice,
                 ]);
-            } else {
-                 $this->command->warn("Producto no encontrado para la tarifa: $productName");
+                
+                $progressBar->advance();
             }
         }
+        
+        $progressBar->finish();
+        $this->command->info("\n¡Precios generados exitosamente para los 24 estados!");
     }
 }

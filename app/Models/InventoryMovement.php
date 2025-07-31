@@ -16,6 +16,7 @@ class InventoryMovement extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'batch_id',
         'user_id',
         'state_id',
         'control_number',
