@@ -23,52 +23,47 @@ class InventoryMovementController extends Controller
             $baseQuery->where('state_id', $user->state_id);
         }
 
-        // --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-        
-        // Consulta para SALIDAS POR LOTE (agrupadas)
-        $salidasPorLote = (clone $baseQuery)
-            ->where('type', 'salida')
-            ->whereNotNull('batch_id')
+        $perPage = 15;
+        $currentPage = request()->get('page', 1);
+
+        $salidasAgrupadas = (clone $baseQuery)
+            ->where('type', 'salida')->whereNotNull('batch_id')
             ->select(
                 'batch_id', 'user_id', 'movement_date', 'status', 'type',
-                DB::raw('NULL as tank_id'), // Columna 6: Placeholder para alinear
+                DB::raw('NULL as tank_id'),
                 DB::raw('SUM(volume_liters) as total_volume'),
                 DB::raw('SUM(total_amount) as total_sales'),
                 DB::raw('MIN(control_number) as first_control_number'),
-                DB::raw('COUNT(*) as item_count')
+                DB::raw('COUNT(*) as item_count'),
+                DB::raw('MIN(id) as id') // <<--- CORRECCIÓN CLAVE 1: Obtenemos un ID de referencia para el lote
             )
             ->groupBy('batch_id', 'user_id', 'movement_date', 'status', 'type');
 
-        // Consulta para ENTRADAS (individuales), alineando las 10 columnas
         $entradasIndividuales = (clone $baseQuery)
             ->where('type', 'entrada')
             ->select(
-                'batch_id', // Columna 1
-                'user_id', // Columna 2
-                'movement_date', // Columna 3
-                'status', // Columna 4
-                'type', // Columna 5
-                'tank_id', // Columna 6
-                'volume_liters as total_volume', // Columna 7
-                'total_amount as total_sales',   // Columna 8 (será null, pero la columna se selecciona)
-                'control_number as first_control_number', // Columna 9
-                DB::raw('1 as item_count') // Columna 10
+                'batch_id', 'user_id', 'movement_date', 'status', 'type', 'tank_id',
+                'volume_liters as total_volume',
+                'total_amount as total_sales',
+                'control_number as first_control_number',
+                DB::raw('1 as item_count'),
+                'id' // <<--- CORRECCIÓN CLAVE 2: Seleccionamos el ID para las entradas
             );
             
-        // La UNION ahora funcionará porque ambas consultas tienen 10 columnas
-        $movements = $salidasPorLote->union($entradasIndividuales)
-                                   ->with('user', 'tank') // Precargamos relaciones después de unir
-                                   ->orderBy('movement_date', 'desc')
-                                   ->paginate(15);
+        $unionedResults = $salidasAgrupadas->union($entradasIndividuales)->orderBy('movement_date', 'desc')->get();
         
-        // --- FIN DE LA CORRECCIÓN DEFINITIVA ---
+        $paginatedResults = new LengthAwarePaginator(
+            $unionedResults->forPage($currentPage, $perPage),
+            $unionedResults->count(), $perPage, $currentPage,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+        
+        $paginatedResults->load('user', 'tank');
+        $movements = $paginatedResults;
         
         return view('movements.index', compact('movements'));
     }
  
-    /**
-     * Show the form for creating a new resource (ENTRADA - Orden de Llenado).
-     */
     public function create()
     {
         $userStateId = Auth::user()->state_id;
@@ -151,6 +146,7 @@ class InventoryMovementController extends Controller
                     'movement_date' => $request->movement_date,
                     'product_id' => $productId,
                     'volume_liters' => $volumeInLiters,
+                    'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'total_amount' => $totalAmount,
                 ]);
@@ -181,18 +177,30 @@ class InventoryMovementController extends Controller
             abort(404);
         }
         
-        return view('movements.show_batch', compact('movements'));
+        $reference = $movements->first();
+        
+        return view('movements.show_batch', compact('movements', 'reference')); 
     }
 
     // --- MÉTODOS DEL WORKFLOW ---
     
+    
     public function review(InventoryMovement $movement)
     {
+        // Route Model Binding ya nos da el objeto $movement correcto gracias al ID.
         if (Auth::user()->state_id !== $movement->state_id && !Auth::user()->hasRole('Admin')) {
             abort(403, 'Acción no autorizada.');
         }
-        $movement->update(['status' => 'revisado']);
-        return redirect()->route('movements.index')->with('success', 'Movimiento N° ' . $movement->control_number . ' ha sido marcado como Revisado.');
+    
+        // Si es un lote de salidas, actualizamos TODOS los registros del lote.
+        if ($movement->type === 'salida' && $movement->batch_id) {
+            InventoryMovement::where('batch_id', $movement->batch_id)->update(['status' => 'revisado']);
+        } else {
+            // Si es una entrada, solo actualizamos ese registro.
+            $movement->update(['status' => 'revisado']);
+        }
+    
+        return redirect()->route('movements.index')->with('success', 'El lote/movimiento ha sido marcado como Revisado.');
     }
 
     public function approve(InventoryMovement $movement)
@@ -200,8 +208,16 @@ class InventoryMovementController extends Controller
         if (Auth::user()->state_id !== $movement->state_id && !Auth::user()->hasRole('Admin')) {
             abort(403, 'Acción no autorizada.');
         }
-        $movement->update(['status' => 'aprobado']);
-        return redirect()->route('movements.index')->with('success', 'Movimiento N° ' . $movement->control_number . ' ha sido Aprobado.');
+
+        // Si es un lote de salidas, actualizamos TODOS los registros del lote.
+        if ($movement->type === 'salida' && $movement->batch_id) {
+            InventoryMovement::where('batch_id', $movement->batch_id)->update(['status' => 'aprobado']);
+        } else {
+            // Si es una entrada, solo actualizamos ese registro.
+            $movement->update(['status' => 'aprobado']);
+        }
+
+        return redirect()->route('movements.index')->with('success', 'El lote/movimiento ha sido Aprobado.');
     }
     
     // Métodos REST no utilizados

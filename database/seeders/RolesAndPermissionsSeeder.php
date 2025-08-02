@@ -20,17 +20,18 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'review movements']);
         Permission::firstOrCreate(['name' => 'approve movements']);
         Permission::firstOrCreate(['name' => 'view reports']);
+        Permission::firstOrCreate(['name' => 'perform daily closing']);
 
         // --- 2. CREAMOS ROLES Y SINCRONIZAMOS SUS PERMISOS ---
         
         // Rol Analista: Solo puede crear movimientos
         $analystRole = Role::firstOrCreate(['name' => 'Analista']);
         // Usamos syncPermissions para asegurar que TENGA ESTE y SOLO ESTE permiso
-        $analystRole->syncPermissions(['create movements']);
+        $analystRole->syncPermissions(['create movements', 'perform daily closing']);
 
         // Rol Supervisor: Puede crear y revisar
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor']);
-        $supervisorRole->syncPermissions(['create movements', 'review movements']);
+        $supervisorRole->syncPermissions(['create movements', 'review movements', 'perform daily closing']);
 
         // Rol Gerente Regional: Puede hacer casi todo, excepto gestionar usuarios
         $managerRole = Role::firstOrCreate(['name' => 'Gerente Regional']);

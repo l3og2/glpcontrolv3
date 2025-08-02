@@ -80,7 +80,8 @@
                             <td class="text-center actions-cell">
                                 @if($movement->status == 'ingresado')
                                     @can('review movements')
-                                        <form action="{{-- route('movements.review', $movement->first_control_number) --}}" method="POST" class="d-inline">
+                                        <!-- La ruta necesita el ID del movimiento, no el N° de control -->
+                                        <form action="{{ route('movements.review', ['movement' => $movement->id]) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-info" title="Revisar Movimiento">
@@ -92,7 +93,7 @@
 
                                 @if($movement->status == 'revisado')
                                     @can('approve movements')
-                                         <form action="{{-- route('movements.approve', $movement->first_control_number) --}}" method="POST" class="d-inline">
+                                        <form action="{{ route('movements.approve', ['movement' => $movement->id]) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-success" title="Aprobar Movimiento">

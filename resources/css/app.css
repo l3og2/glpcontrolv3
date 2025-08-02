@@ -1,1 +1,88 @@
+/*
+|--------------------------------------------------------------------------
+| Archivo de Estilos Principal de la Aplicación (app.css)
+|--------------------------------------------------------------------------
+|
+| Aquí es donde importamos todas nuestras dependencias de CSS y definimos
+| nuestros estilos personalizados y corporativos para GLPControlv3.
+|
+*/
+
+/* 1. Importación de Fuentes desde Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Montserrat:wght@400;700;900&display=swap');
+
+/* 2. Importación del Framework Bootstrap 5 */
+/* Esta línea debe ir ANTES de tus estilos personalizados */
 @import "bootstrap";
+
+/* ===== 3. DEFINICIÓN DE ESTILOS PERSONALIZADOS Y CORPORATIVOS ===== */
+
+/* Estilos Generales del Cuerpo y la Tipografía */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f8f9fa; /* Un gris muy claro para el fondo */
+}
+
+h1, h2, h3, h4, h5, h6, .navbar-brand, .card-header {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+}
+
+/* Clase para nuestro color corporativo (Rojo Escarlata) */
+.corporate-red {
+    color: #C00000 !important;
+}
+
+/* Estilos para el botón corporativo principal */
+.btn-corporate {
+    background-color: #C00000;
+    color: white;
+    border-color: #A00000;
+    font-weight: bold;
+}
+
+.btn-corporate:hover {
+    background-color: #A00000;
+    border-color: #800000;
+    color: white;
+}
+
+/* Estilos para las tablas de formularios (ej. Salida por Lotes) */
+.table-input {
+    width: 100px;
+    text-align: right;
+}
+
+.table-output {
+    font-weight: bold;
+}
+
+.table-total {
+    background-color: #e9ecef;
+    font-weight: bold;
+}
+
+.table-grand-total {
+    background-color: #343a40; /* Un gris oscuro para los grandes totales */
+    color: white;
+    font-weight: bold;
+}
+
+/* (Opcional) Estilos para imprimir comprobantes de forma más limpia */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .printable-area, .printable-area * {
+        visibility: visible;
+    }
+    .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
