@@ -16,13 +16,45 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Obtenemos TODOS los usuarios de la base de datos.
-        $users = User::all();
+        // Empezamos con una consulta base de Eloquent, precargando las relaciones
+        // para evitar el problema N+1 y hacer la consulta más eficiente.
+        $query = User::with('state', 'roles');
 
-        // 2. Devolvemos la vista y le PASAMOS la variable $users.
-        return view('admin.users.index', compact('users'));
+        // Aplicamos el filtro si se envía un término de búsqueda
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            // Usamos un grupo de where para buscar en múltiples columnas
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'ILIKE', "%{$searchTerm}%")
+                  ->orWhere('email', 'ILIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Aplicamos el filtro si se selecciona un Estado
+        if ($request->filled('state_id')) {
+            $query->where('state_id', $request->state_id);
+        }
+
+        // Aplicamos el filtro si se selecciona un Rol
+        if ($request->filled('role')) {
+            // Usamos whereHas para filtrar basado en una relación
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('name', $request->role);
+            });
+        }
+
+        // Ejecutamos la consulta final, ordenamos por nombre, y paginamos.
+        // withQueryString() es crucial para que los filtros se mantengan al cambiar de página.
+        $users = $query->orderBy('name')->paginate(15)->withQueryString();
+        
+        // Obtenemos los datos para los menús desplegables del filtro
+        $states = State::orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
+
+        // Pasamos todas las variables necesarias a la vista
+        return view('admin.users.index', compact('users', 'states', 'roles'));
     }
 
     /**
@@ -30,13 +62,9 @@ class UserController extends Controller
      */
     public function create()
     {
-        // 1. Obtenemos todos los estados de la base de datos.
-        $states = State::all();
-
-        // 2. Obtenemos todos los roles de la base de datos.
-        $roles = Role::all();
-
-        // 3. Devolvemos la vista y le PASAMOS AMBAS variables.
+        $states = State::orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
+        
         return view('admin.users.create', compact('states', 'roles'));
     }
 
@@ -45,43 +73,25 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-    // --- 1. VALIDACIÓN ---
-    // Este es el primer guardián. Si algo falla aquí, Laravel
-    // automáticamente redirige al usuario al formulario con los errores.
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users', // 'unique:users' es crucial
-        'password' => 'required|string|min:8',
-        'state_id' => 'nullable|exists:states,id', // Permite que sea nulo, pero si se envía, debe existir en la tabla 'states'
-        'roles' => 'required|array'
-    ]);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'state_id' => 'nullable|exists:states,id',
+            'roles' => 'required|array'
+        ]);
    
-    // --- 2. CREACIÓN DEL USUARIO ---
-    // Usamos User::create para la asignación masiva.
-    $user = User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'state_id' => $request->state_id,
-        // ¡MUY IMPORTANTE! Nunca guardes la contraseña en texto plano.
-        'password' => Hash::make($request->password), 
-    ]);
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'state_id' => $request->state_id,
+            'password' => Hash::make($request->password), 
+        ]);
 
-    // --- 3. ASIGNACIÓN DE ROLES ---
-    // El paquete Spatie se encarga de esto elegantemente.
-    $user->assignRole($request->roles);
+        $user->assignRole($request->roles);
 
-    // --- 4. REDIRECCIÓN CON MENSAJE DE ÉXITO ---
-    // Si el código llega hasta aquí, todo salió bien.
-    return redirect()->route('admin.users.index')
-        ->with('success', 'Usuario creado exitosamente.');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
+        return redirect()->route('admin.users.index')
+            ->with('success', 'Usuario creado exitosamente.');
     }
 
     /**
@@ -89,18 +99,15 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        // Verificación de seguridad: No permitir que el admin edite su propia cuenta
-        if (Auth::user()->id == $user->id) {
+        // Se puede añadir una capa extra de seguridad con Policies, pero esta verificación es funcional.
+        if (Auth::user()->id === $user->id && Auth::user()->hasRole('Admin')) {
             return redirect()->route('admin.users.index')
-                ->with('error', 'No puedes editar tu propia cuenta.');
+                ->with('warning', 'Los administradores no pueden editar su propia cuenta desde este panel. Utilice la página de perfil.');
         }
 
-        // Obtenemos todos los estados y roles para pasarlos a la vista
-    
-        $states = State::all();
-        $roles = Role::all();
+        $states = State::orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
 
-        // Pasamos el usuario específico que se va a editar, más las listas de estados y roles
         return view('admin.users.edit', compact('user', 'states', 'roles'));
     }
 
@@ -109,35 +116,25 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        // --- 1. VALIDACIÓN ---
         $request->validate([
-        'name' => 'required|string|max:255',
-        // 'unique' tiene una regla especial para 'update': debe ignorar el email del propio usuario
-        'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-        'state_id' => 'nullable|exists:states,id',
-        'roles' => 'required|array',
-        // La contraseña es opcional, solo la actualizamos si se envía una nueva
-        'password' => 'nullable|string|min:8',
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'state_id' => 'nullable|exists:states,id',
+            'roles' => 'required|array',
+            'password' => 'nullable|string|min:8',
         ]);
 
-        // --- 2. ACTUALIZACIÓN DEL USUARIO ---
-        // Usamos un array para los datos a actualizar
         $data = $request->only('name', 'email', 'state_id');
 
-        // Solo añadimos la contraseña al array si el campo no vino vacío
         if ($request->filled('password')) {
-        $data['password'] = Hash::make($request->password);
+            $data['password'] = Hash::make($request->password);
         }
            
         $user->update($data);
-
-        // --- 3. SINCRONIZACIÓN DE ROLES ---
-        // 'syncRoles' es perfecto para 'update': quita los roles viejos y pone los nuevos.
         $user->syncRoles($request->roles);
 
-        // --- 4. REDIRECCIÓN CON MENSAJE DE ÉXITO ---
         return redirect()->route('admin.users.index')
-        ->with('success', 'Usuario actualizado exitosamente.');
+            ->with('success', 'Usuario actualizado exitosamente.');
     }       
         
     /**
@@ -145,15 +142,20 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Verificación de seguridad: No permitir que el admin se elimine a sí mismo
-        if (Auth::user()->id == $user->id) {
-        return redirect()->route('admin.users.index')
-        ->with('error', 'No puedes eliminar tu propia cuenta.');
+        if (Auth::user()->id === $user->id) {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'No puedes eliminar tu propia cuenta de administrador.');
         }
 
         $user->delete();
 
         return redirect()->route('admin.users.index')
-        ->with('success', 'Usuario eliminado exitosamente.');
+            ->with('success', 'Usuario eliminado exitosamente.');
+    }
+    
+    // El método show no se usa en un CRUD de este tipo, así que lo dejamos vacío o lo eliminamos.
+    public function show(User $user)
+    {
+        //
     }
 }

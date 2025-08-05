@@ -10,14 +10,37 @@ use App\Services\InventoryService;
 
 class DailyClosingController extends Controller
 {
+    /**
+     * Muestra una lista paginada del historial de cierres diarios.
+     */
+    public function index()
+    {
+        $query = DailyClosing::with('user', 'state');
+        $user = Auth::user();
+
+        // Los usuarios no-administradores solo ven los cierres de su propio estado.
+        // Los administradores ven todos.
+        if (!$user->hasRole('Admin')) {
+            $query->where('state_id', $user->state_id);
+        }
+        
+        $closings = $query->orderBy('closing_date', 'desc')->paginate(15);
+        
+        return view('daily_closing.index', compact('closings'));
+    }
+
+    /**
+     * Muestra el formulario para crear un nuevo cierre diario.
+     */
     public function create(InventoryService $inventoryService)
     {
         $today = Carbon::today();
         $user = Auth::user();
 
-        // Verificamos si ya se hizo un cierre para hoy
+        // Verificamos si ya se hizo un cierre para el día de hoy en este estado.
         if (DailyClosing::where('state_id', $user->state_id)->whereDate('closing_date', $today)->exists()) {
-            return redirect()->route('dashboard')->with('warning', 'El cierre para el día de hoy ya fue realizado.');
+            return redirect()->route('daily-closing.index')
+                ->with('warning', 'El cierre para el día de hoy ya fue realizado.');
         }
 
         $closingData = $inventoryService->getDailyClosingData($user->state_id, $today);
@@ -25,23 +48,36 @@ class DailyClosingController extends Controller
         return view('daily_closing.create', compact('closingData', 'today'));
     }
 
+    /**
+     * Guarda un nuevo cierre diario en la base de datos.
+     */
     public function store(Request $request, InventoryService $inventoryService)
     {
         $request->validate([
             'manual_reading' => 'required|numeric|min:0',
-            'justification' => 'nullable|string',
+            'justification' => 'nullable|string|max:1000',
         ]);
         
         $today = Carbon::today();
         $user = Auth::user();
+
+        // Prevenimos cierres duplicados por si el usuario abre dos pestañas
+        if (DailyClosing::where('state_id', $user->state_id)->whereDate('closing_date', $today)->exists()) {
+            return redirect()->route('daily-closing.index')
+                ->with('warning', 'El cierre para el día de hoy ya fue realizado por otro usuario.');
+        }
+
         $closingData = $inventoryService->getDailyClosingData($user->state_id, $today);
         
-        $manualReading = (float) $request->manual_reading;
+        // El valor de la lectura manual viene como un string, lo convertimos a float.
+        $manualReading = (float) str_replace(',', '.', str_replace('.', '', $request->manual_reading));
         $theoricalInventory = $closingData['theorical_inventory'];
         $discrepancy = $manualReading - $theoricalInventory;
-        // Evitamos división por cero si el inventario teórico es 0
-        $discrepancyPercentage = $theoricalInventory != 0 ? abs(($discrepancy / $theoricalInventory) * 100) : 0;
         
+        // Evitamos la división por cero si el inventario teórico es 0
+        $discrepancyPercentage = $theoricalInventory != 0 ? abs(($discrepancy / $theoricalInventory) * 100) : ($manualReading > 0 ? 100 : 0);
+        
+        // Validamos la discrepancia en el backend como segunda capa de seguridad
         if ($discrepancyPercentage > 3) {
             return redirect()->back()
                 ->withInput()
@@ -62,6 +98,21 @@ class DailyClosingController extends Controller
             'justification' => $request->justification,
         ]);
         
-        return redirect()->route('dashboard')->with('success', 'Cierre del día realizado con éxito.');
+        return redirect()->route('daily-closing.index')->with('success', 'Cierre del día realizado con éxito.');
+    }
+
+    /**
+     * Muestra el detalle de un cierre diario específico.
+     */
+    public function show(DailyClosing $dailyClosing)
+    {
+        $user = Auth::user();
+        
+        // Lógica de autorización: el usuario solo puede ver cierres de su estado (a menos que sea Admin).
+        if (!$user->hasRole('Admin') && $user->state_id !== $dailyClosing->state_id) {
+            abort(403, 'Acción no autorizada.');
+        }
+
+        return view('daily_closing.show', compact('dailyClosing'));
     }
 }

@@ -27,6 +27,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/daily-closing', [DailyClosingController::class, 'store'])->name('daily-closing.store');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
+Route::controller(DailyClosingController::class)->prefix('daily-closing')->name('daily-closing.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{dailyClosing}', 'show')->name('show');
+    });
 });
 
 Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {

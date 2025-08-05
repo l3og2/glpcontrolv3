@@ -28,14 +28,14 @@ class DailyClosing extends Model
         'discrepancy_percentage',
         'justification',
         
-        // --- Auditoría y Aprobación ---
-        'remarks',                // Observaciones o notas del operador.
-        'approved_by',            // El ID del usuario (Supervisor/Gerente) que aprueba/rechaza.
-        'approved_at',            // La fecha y hora de la aprobación/rechazo.
+        // --- Campos de Auditoría (si los tienes en la BD) ---
+        'remarks',
+        'approved_by',
+        'approved_at',
     ];
 
     /**
-     * The attributes that should be cast.
+     * The attributes that should be cast to native types.
      *
      * @var array<string, string>
      */
@@ -44,8 +44,26 @@ class DailyClosing extends Model
         'approved_at' => 'datetime',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | RELACIONES DE ELOQUENT
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * Get the user who created the daily closing.
+     * Define la relación: Un cierre diario pertenece a un Estado.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function state(): BelongsTo
+    {
+        return $this->belongsTo(State::class);
+    }
+
+    /**
+     * Define la relación: Un cierre diario fue creado por un Usuario.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -53,7 +71,9 @@ class DailyClosing extends Model
     }
 
     /**
-     * Get the user who approved the daily closing.
+     * Define la relación: Un cierre diario fue aprobado por un Usuario.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function approver(): BelongsTo
     {

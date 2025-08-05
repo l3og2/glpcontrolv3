@@ -19,6 +19,7 @@
                         Dashboard
                     </a>
                 </li>
+                
                 @can('create movements')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('movements.*') ? 'active' : '' }}" href="{{ route('movements.index') }}">
@@ -26,7 +27,14 @@
                         </a>
                     </li>
                 @endcan
-                            
+                
+                @can('perform daily closing')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('daily-closing.*') ? 'active' : '' }}" href="{{ route('daily-closing.index') }}">
+                            Cierres Diarios
+                        </a>
+                    </li>
+                @endcan
                 
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">
