@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById(`subtotal-sales-${groupName}`).textContent = `Bs. ${formatNumber(subtotalSales)}`;
 
             grandTotalVolume += subtotalVolume;
-            grandTotalSales += grandTotalSales;
+            grandTotalSales += subtotalSales;
         });
 
         document.getElementById('grand-total-volume').textContent = formatNumber(grandTotalVolume);
