@@ -19,6 +19,47 @@
 @section('content')
 <div class="card shadow-sm">
     <div class="card-body">
+        
+        <!-- ==================== FORMULARIO DE FILTRO ==================== -->
+        <form method="GET" action="{{ route('movements.index') }}" class="mb-4 border p-3 rounded bg-light">
+            <div class="row g-3 align-items-center">
+                
+                {{-- Filtro de Estado: Solo visible para el Admin --}}
+                @role('Admin')
+                <div class="col-md-5">
+                    <label for="state_id" class="form-label">Filtrar por Estado:</label>
+                    <select id="state_id" name="state_id" class="form-select">
+                        <option value="">-- Todos los Estados --</option>
+                        @foreach($states as $state)
+                            <option value="{{ $state->id }}" {{ request('state_id') == $state->id ? 'selected' : '' }}>
+                                {{ $state->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endrole
+
+                {{-- Filtro de Estatus: Visible para todos --}}
+                <div class="col-md-5">
+                    <label for="status" class="form-label">Filtrar por Estatus:</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">-- Todos los Estatus --</option>
+                        <option value="ingresado" {{ request('status') == 'ingresado' ? 'selected' : '' }}>Ingresado</option>
+                        <option value="revisado" {{ request('status') == 'revisado' ? 'selected' : '' }}>Revisado</option>
+                        <option value="aprobado" {{ request('status') == 'aprobado' ? 'selected' : '' }}>Aprobado</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="d-grid w-100">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel-fill me-1"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+                
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle">
                 <thead class="table-dark">

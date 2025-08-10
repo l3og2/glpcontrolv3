@@ -14,41 +14,42 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class InventoryMovementController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
     {
         $user = Auth::user();
         
+        // --- INICIO DE LA LÓGICA DE FILTROS ---
         $baseQuery = InventoryMovement::query();
-        if ($user->hasRole('Gerente Regional')) {
+
+        // Filtro por Rol: Los no-Admins solo ven su estado.
+        if (!$user->hasRole('Admin')) {
             $baseQuery->where('state_id', $user->state_id);
+        } 
+        // Si el Admin usa el filtro de estado, se aplica.
+        elseif ($user->hasRole('Admin') && $request->filled('state_id')) {
+            $baseQuery->where('state_id', $request->state_id);
         }
+        
+        // Filtro por Estatus del movimiento (ingresado, revisado, aprobado)
+        if ($request->filled('status')) {
+            $baseQuery->where('status', $request->status);
+        }
+        // --- FIN DE LA LÓGICA DE FILTROS ---
 
         $perPage = 15;
         $currentPage = request()->get('page', 1);
 
         $salidasAgrupadas = (clone $baseQuery)
             ->where('type', 'salida')->whereNotNull('batch_id')
-            ->select(
-                'batch_id', 'user_id', 'movement_date', 'status', 'type',
-                DB::raw('NULL as tank_id'),
-                DB::raw('SUM(volume_liters) as total_volume'),
-                DB::raw('SUM(total_amount) as total_sales'),
-                DB::raw('MIN(control_number) as first_control_number'),
-                DB::raw('COUNT(*) as item_count'),
-                DB::raw('MIN(id) as id') // <<--- CORRECCIÓN CLAVE 1: Obtenemos un ID de referencia para el lote
-            )
+            ->select('batch_id', 'user_id', 'movement_date', 'status', 'type', DB::raw('NULL as tank_id'), DB::raw('SUM(volume_liters) as total_volume'), DB::raw('SUM(total_amount) as total_sales'), DB::raw('MIN(control_number) as first_control_number'), DB::raw('COUNT(*) as item_count'), DB::raw('MIN(id) as id'))
             ->groupBy('batch_id', 'user_id', 'movement_date', 'status', 'type');
 
         $entradasIndividuales = (clone $baseQuery)
             ->where('type', 'entrada')
-            ->select(
-                'batch_id', 'user_id', 'movement_date', 'status', 'type', 'tank_id',
-                'volume_liters as total_volume',
-                'total_amount as total_sales',
-                'control_number as first_control_number',
-                DB::raw('1 as item_count'),
-                'id' // <<--- CORRECCIÓN CLAVE 2: Seleccionamos el ID para las entradas
-            );
+            ->select('batch_id', 'user_id', 'movement_date', 'status', 'type', 'tank_id', 'volume_liters as total_volume', 'total_amount as total_sales', 'control_number as first_control_number', DB::raw('1 as item_count'), 'id');
             
         $unionedResults = $salidasAgrupadas->union($entradasIndividuales)->orderBy('movement_date', 'desc')->get();
         
@@ -61,9 +62,15 @@ class InventoryMovementController extends Controller
         $paginatedResults->load('user', 'tank');
         $movements = $paginatedResults;
         
-        return view('movements.index', compact('movements'));
+        // Obtenemos los estados para el dropdown del filtro (solo necesario para el Admin)
+        $states = State::orderBy('name')->get();
+        
+        return view('movements.index', compact('movements', 'states'));
     }
  
+    /**
+     * Show the form for creating a new resource (ENTRADA - Orden de Llenado).
+     */
     public function create()
     {
         $userStateId = Auth::user()->state_id;
@@ -145,8 +152,8 @@ class InventoryMovementController extends Controller
                     'type' => 'salida',
                     'movement_date' => $request->movement_date,
                     'product_id' => $productId,
-                    'volume_liters' => $volumeInLiters,
                     'quantity' => $quantity,
+                    'volume_liters' => $volumeInLiters,
                     'unit_price' => $unitPrice,
                     'total_amount' => $totalAmount,
                 ]);
@@ -184,19 +191,15 @@ class InventoryMovementController extends Controller
 
     // --- MÉTODOS DEL WORKFLOW ---
     
-    
     public function review(InventoryMovement $movement)
     {
-        // Route Model Binding ya nos da el objeto $movement correcto gracias al ID.
         if (Auth::user()->state_id !== $movement->state_id && !Auth::user()->hasRole('Admin')) {
             abort(403, 'Acción no autorizada.');
         }
     
-        // Si es un lote de salidas, actualizamos TODOS los registros del lote.
         if ($movement->type === 'salida' && $movement->batch_id) {
             InventoryMovement::where('batch_id', $movement->batch_id)->update(['status' => 'revisado']);
         } else {
-            // Si es una entrada, solo actualizamos ese registro.
             $movement->update(['status' => 'revisado']);
         }
     
@@ -209,11 +212,9 @@ class InventoryMovementController extends Controller
             abort(403, 'Acción no autorizada.');
         }
 
-        // Si es un lote de salidas, actualizamos TODOS los registros del lote.
         if ($movement->type === 'salida' && $movement->batch_id) {
             InventoryMovement::where('batch_id', $movement->batch_id)->update(['status' => 'aprobado']);
         } else {
-            // Si es una entrada, solo actualizamos ese registro.
             $movement->update(['status' => 'aprobado']);
         }
 

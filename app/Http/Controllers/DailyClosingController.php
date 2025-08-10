@@ -44,6 +44,18 @@ class DailyClosingController extends Controller
         }
 
         $closingData = $inventoryService->getDailyClosingData($user->state_id, $today);
+        $categories = ['Residencial', 'Comercial', 'Convenios'];
+
+            foreach ($categories as $category) {
+
+            if (!isset($closingData['all_products'][$category])) {
+            $closingData['all_products'][$category] = collect();
+            }
+
+            if (!isset($closingData['sales_summary'][$category])) {
+            $closingData['sales_summary'][$category] = collect();
+            }
+        }       
 
         return view('daily_closing.create', compact('closingData', 'today'));
     }
@@ -78,10 +90,10 @@ class DailyClosingController extends Controller
         $discrepancyPercentage = $theoricalInventory != 0 ? abs(($discrepancy / $theoricalInventory) * 100) : ($manualReading > 0 ? 100 : 0);
         
         // Validamos la discrepancia en el backend como segunda capa de seguridad
-        if ($discrepancyPercentage > 3) {
+        if ($discrepancyPercentage > 1) {
             return redirect()->back()
                 ->withInput()
-                ->withErrors(['manual_reading' => 'La discrepancia no puede superar el 3%. Por favor, revise los movimientos o justifique la diferencia.']);
+                ->withErrors(['manual_reading' => 'La discrepancia no puede superar el 1%. Por favor, revise los movimientos o justifique la diferencia.']);
         }
         
         DailyClosing::create([

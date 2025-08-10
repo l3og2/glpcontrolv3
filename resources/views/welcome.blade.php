@@ -135,7 +135,7 @@
         <footer class="py-4 footer">
             <div class="container text-center">
                 <p>© {{ date('Y') }} Gas Comunal, S.A. Todos los derechos reservados.</p>
-                <p>Desarrollado con <span class="corporate-red">♥</span> por el equipo de GLPControlv3.</p>
+                <p>Desarrollado con <span class="corporate-red">♥</span> por L3oG2.</p>
             </div>
         </footer>
     </body>
