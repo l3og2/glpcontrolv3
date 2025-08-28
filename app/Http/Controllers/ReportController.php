@@ -88,6 +88,19 @@ class ReportController extends Controller
         ]);
     }    
     
+    public function export(Request $request)
+    {
+        // Obtenemos todos los filtros de la petición
+        $filters = $request->only([
+            'start_date', 'end_date', 'state_id', 'type', 'product_id', 'status'
+        ]);
+
+        $fileName = 'Reporte_Movimientos_' . Carbon::now()->format('Y-m-d_His') . '.xlsx';
+    
+        // Pasamos el array de filtros a nuestra clase de exportación
+        return Excel::download(new InventoryMovementsExport($filters), $fileName);
+    }
+
     /**
      * Exporta los movimientos de inventario a un archivo Excel.
      *

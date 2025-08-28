@@ -5,37 +5,45 @@ namespace App\Exports;
 use App\Models\InventoryMovement;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
+use Illuminate\Support\Facades\Auth;
 
 class InventoryMovementsExport implements FromView
 {
-    protected $start;
-    protected $end;
-    protected $type;
+    protected $filters;
 
-    public function __construct($start, $end, $type = null)
+    // Recibimos un array con todos los filtros
+    public function __construct(array $filters)
     {
-        $this->start = $start;
-        $this->end = $end;
-        $this->type = $type;
+        $this->filters = $filters;
     }
 
     public function view(): View
     {
-        $query = InventoryMovement::query();
+        // Reutilizamos la misma lógica de consulta que en ReportController@generate
+        $query = InventoryMovement::with('user', 'product', 'tank', 'state');
 
-        if ($this->start && $this->end) {
-            $query->whereBetween('created_at', [
-                $this->start . ' 00:00:00',
-                $this->end . ' 23:59:59'
-            ]);
+        // Aplicamos los filtros
+        $query->whereBetween('movement_date', [$this->filters['start_date'], $this->filters['end_date']]);
+
+        if (Auth::user()->hasRole('Admin') && !empty($this->filters['state_id'])) {
+            $query->where('state_id', $this->filters['state_id']);
+        } else if (!Auth::user()->hasRole('Admin')) {
+            $query->where('state_id', Auth::user()->state_id);
         }
-        
-        if ($this->type) {
-            $query->where('type', $this->type);
+        if (!empty($this->filters['type'])) {
+            $query->where('type', $this->filters['type']);
+        }
+        if (!empty($this->filters['product_id'])) {
+            $query->where('product_id', $this->filters['product_id']);
+        }
+        if (!empty($this->filters['status'])) {
+            $query->where('status', $this->filters['status']);
         }
 
-        $movements = $query->with('user')->get();
+        // Obtenemos TODOS los resultados, sin paginar
+        $movements = $query->orderBy('movement_date', 'desc')->get();
 
+        // Pasamos la colección de movimientos a la vista de Excel
         return view('reports.excel', [
             'movements' => $movements
         ]);
